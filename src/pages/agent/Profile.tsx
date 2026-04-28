@@ -36,7 +36,7 @@ export default function AgentProfile() {
       .finally(() => setLoading(false));
   }, []);
 
-  const referralLink = `${window.location.origin}/register?ref=${user?.id}`;
+  const referralLink = `${window.location.origin}/dang-ky-dai-ly?ref=${user?.id}`;
   const shopLink = `${window.location.origin}/shop/${user?.id}`;
 
   const handleCopy = (text: string) => {
