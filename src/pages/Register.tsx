@@ -36,7 +36,16 @@ export default function Register() {
       });
       navigate('/agent/login?registered=true');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Đăng ký thất bại');
+      const serverMessage = err?.response?.data?.message;
+      const status = err?.response?.status;
+
+      if (serverMessage) {
+        setError(serverMessage);
+      } else if (status) {
+        setError(`Đăng ký thất bại (HTTP ${status}). Vui lòng thử lại.`);
+      } else {
+        setError('Không kết nối được máy chủ. Vui lòng kiểm tra cấu hình API/Vercel.');
+      }
     } finally {
       setLoading(false);
     }
