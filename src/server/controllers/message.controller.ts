@@ -10,11 +10,10 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     const userRole = req.user?.role;
     
-    // Ensure group conversation exists
     let groupConv = await Conversation.findOne({ isGroup: true, name: 'Nhóm Chung' });
     if (!groupConv) {
       groupConv = new Conversation({
-        members: [], // We'll handle membership dynamically or just allow everyone
+        members: [],
         isGroup: true,
         name: 'Nhóm Chung',
         lastMessage: 'Chào mừng bạn tham gia nhóm chung!',
@@ -23,13 +22,10 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
       await groupConv.save();
     }
 
-    // Admins see all conversations. Agents see their P2P chats with admins and the group.
     let query: any = { members: userId };
     if (userRole === 'admin') {
-      // Admins see all P2P conversations + the group
       query = { $or: [{ members: userId }, { isGroup: true }] };
     } else {
-      // Agents see conversations they are members of + the group
       query = { $or: [{ members: userId }, { isGroup: true }] };
     }
     
@@ -80,13 +76,9 @@ export const getOrCreateConversation = async (req: AuthRequest, res: Response) =
        return res.status(400).json({ message: 'Cannot chat with yourself' });
     }
 
-    // Role check: Only allow P2P if one of them is Admin, or if they are both Admins.
-    // Basically, Agents cannot start P2P with other agents.
-    const currentUser = await User.findById(userId);
     const targetUser = await User.findById(partnerId);
-
-    if (currentUser?.role !== 'admin' && targetUser?.role !== 'admin') {
-      return res.status(403).json({ message: 'Bạn chỉ có thể chat chung trong nhóm.' });
+    if (!targetUser || targetUser.status !== 'active') {
+      return res.status(404).json({ message: 'Không tìm thấy người nhận hoặc tài khoản đã bị khóa.' });
     }
 
     let conversation = await Conversation.findOne({
@@ -128,11 +120,11 @@ export const getMessagesByConversation = async (req: AuthRequest, res: Response)
     const { conversationId } = req.params;
     const userId = req.user?.id;
 
-    // Verify membership if not a group
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) return res.status(404).json({ message: 'Conversation not found' });
     
-    if (!conversation.isGroup && !conversation.members.includes(userId as any)) {
+    const isMember = conversation.isGroup || conversation.members.some(member => member.toString() === userId?.toString());
+    if (!isMember) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -163,11 +155,9 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       });
 
       if (!conversation) {
-        // Double check roles for P2P
-        const currentUser = await User.findById(userId);
         const targetUser = await User.findById(receiverId);
-        if (currentUser?.role !== 'admin' && targetUser?.role !== 'admin') {
-          return res.status(403).json({ message: 'Unauthorized P2P chat' });
+        if (!targetUser || targetUser.status !== 'active') {
+          return res.status(404).json({ message: 'Không tìm thấy người nhận hoặc tài khoản đã bị khóa.' });
         }
 
         conversation = new Conversation({
@@ -181,17 +171,21 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 
     if (!conversation) return res.status(404).json({ message: 'Conversation not found' });
 
+    const canSend = conversation.isGroup || conversation.members.some((member: any) => member.toString() === userId?.toString());
+    if (!canSend) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
     const message = new Message({
       conversationId: targetConvId,
       senderId: userId,
-      receiverId: conversation.isGroup ? null : receiverId,
+      receiverId: conversation.isGroup ? null : (receiverId || conversation.members.find((member: any) => member.toString() !== userId?.toString())),
       content
     });
 
     await message.save();
     await message.populate('senderId', 'name role');
 
-    // Update conversation
     const updateQuery: any = {
       $set: { 
         lastMessage: content,
@@ -200,12 +194,6 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     };
 
     if (conversation.isGroup) {
-      // Increment unread for everyone except sender
-      // This is tricky with Map. We might need to iterate or just use a dynamic key if we knew all members.
-      // For global group, maybe we don't track unread individual counts easily without a defined member list.
-      // Let's assume the group has members = all users for now, or just skip unread for group for simplicity if preferred.
-      // But user asked for unreadCount.
-      // I'll update all users who are not the sender.
       const allUsers = await User.find({ _id: { $ne: userId } });
       const incObj: any = {};
       allUsers.forEach(u => {
@@ -218,10 +206,8 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 
     await Conversation.updateOne({ _id: targetConvId }, updateQuery);
 
-    // Emit to others
     if (conversation.isGroup) {
       const io = (await import('../socket.js')).getIO();
-      // Broadcast to a 'group' room if we implement it, or just to all users
       io.emit('new_message', message);
     } else {
       emitToUser(receiverId, 'new_message', message);
@@ -231,7 +217,6 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
         content: message.content,
         createdAt: message.createdAt
       });
-      // Emit to sender
       emitToUser(userId as string, 'new_message', message);
     }
 
@@ -266,16 +251,8 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
 export const getContacts = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    const userRole = req.user?.role;
 
-    let query: any = { _id: { $ne: userId } };
-    
-    if (userRole !== 'admin') {
-      // Agents only see Admins
-      query.role = 'admin';
-    }
-
-    const users = await User.find(query)
+    const users = await User.find({ _id: { $ne: userId }, status: 'active' })
       .select('name role phone avatar');
     
     res.json(users.map(u => ({
