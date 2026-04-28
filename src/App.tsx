@@ -48,7 +48,7 @@ export default function App() {
         
         {/* Old Routes Redirects */}
         <Route path="/login" element={<Navigate to="/agent/login" replace />} />
-        <Route path="/register" element={<Navigate to="/dang-ky-dai-ly" replace />} />
+        <Route path="/register" element={<Navigate to={`/dang-ky-dai-ly${window.location.search}`} replace />} />
         
         <Route path="/shop/:agentId" element={<Shop />} />
         
