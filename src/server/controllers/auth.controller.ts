@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -11,26 +12,61 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, phone, email, password, referrerId } = req.body;
-    
+    const name = String(req.body.name || '').trim();
+    const phone = String(req.body.phone || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    const referrerId = req.body.referrerId ? String(req.body.referrerId).trim() : '';
+
+    if (!name || !phone || !email || !password) {
+      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ họ tên, email, số điện thoại và mật khẩu' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+    }
+
+    let validReferrerId: mongoose.Types.ObjectId | undefined;
+    if (referrerId) {
+      if (!mongoose.Types.ObjectId.isValid(referrerId)) {
+        return res.status(400).json({ message: 'Mã giới thiệu không hợp lệ' });
+      }
+
+      const referrer = await User.findOne({ _id: referrerId, role: 'agent', status: 'active' }).select('_id');
+      if (!referrer) {
+        return res.status(400).json({ message: 'Không tìm thấy đại lý giới thiệu hợp lệ' });
+      }
+
+      validReferrerId = new mongoose.Types.ObjectId(referrerId);
+    }
+
     const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: 'Email already exists' });
+    if (existing) return res.status(400).json({ message: 'Email đã được sử dụng' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ 
-      name, 
-      phone, 
-      email, 
-      password: hashedPassword, 
+    const user = new User({
+      name,
+      phone,
+      email,
+      password: hashedPassword,
       role: 'agent',
-      referrerId: referrerId || undefined
+      referrerId: validReferrerId
     });
     await user.save();
 
-    res.status(201).json({ message: 'Registered successfully', user: { id: user._id, email } });
-  } catch (error) {
+    res.status(201).json({ message: 'Đăng ký thành công', user: { id: user._id, email } });
+  } catch (error: any) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });
+
+    if (error?.code === 11000) {
+      return res.status(400).json({ message: 'Email đã được sử dụng' });
+    }
+
+    if (error instanceof mongoose.Error.ValidationError) {
+      return res.status(400).json({ message: Object.values(error.errors)[0]?.message || 'Dữ liệu đăng ký không hợp lệ' });
+    }
+
+    res.status(500).json({ message: 'Lỗi máy chủ khi đăng ký', error: error instanceof Error ? error.message : String(error) });
   }
 };
 
