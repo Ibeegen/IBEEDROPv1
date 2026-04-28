@@ -28,9 +28,10 @@ export default function Register() {
     setError('');
 
     try {
+      const { confirmPassword, ...payload } = formData;
       await api.post('/auth/register', {
-        ...formData,
-        referrerId
+        ...payload,
+        referrerId: referrerId || undefined
       });
       navigate('/agent/login?registered=true');
     } catch (err: any) {
