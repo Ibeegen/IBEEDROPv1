@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom';
 
 export default function Register() {
   const [searchParams] = useSearchParams();
-  const referrerId = searchParams.get('ref');
+  const referrerIdRaw = searchParams.get('ref');
+  const referrerId = referrerIdRaw && /^[a-f\d]{24}$/i.test(referrerIdRaw) ? referrerIdRaw : null;
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -31,7 +32,7 @@ export default function Register() {
       const { confirmPassword, ...payload } = formData;
       await api.post('/auth/register', {
         ...payload,
-        referrerId: referrerId || undefined
+        referrerId: referrerId ?? undefined
       });
       navigate('/agent/login?registered=true');
     } catch (err: any) {
@@ -54,6 +55,12 @@ export default function Register() {
            {referrerId && (
              <div className="mt-4 inline-block px-3 py-1 bg-[#FFF4B5] rounded-full">
                 <p className="text-[10px] text-[#111827] font-black uppercase tracking-widest">Được giới thiệu bởi đối tác</p>
+             </div>
+           )}
+
+           {!referrerId && referrerIdRaw && (
+             <div className="mt-4 inline-block px-3 py-1 bg-amber-50 border border-amber-100 rounded-full">
+                <p className="text-[10px] text-amber-700 font-black uppercase tracking-widest">Mã giới thiệu không hợp lệ, tiếp tục đăng ký thường</p>
              </div>
            )}
         </div>
