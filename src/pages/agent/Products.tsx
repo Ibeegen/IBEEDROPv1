@@ -114,16 +114,18 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
+        const productEndpoint = activeFilter === 'hot' ? '/products/top-selling' : '/products';
+        const productParams = activeFilter === 'featured' ? { featured: 'true' } : {};
         const [productsRes, suppliersRes] = await Promise.all([
-          api.get('/products'),
+          api.get(productEndpoint, { params: productParams }),
           api.get('/suppliers')
         ]);
         setProducts(productsRes.data);
         setSuppliers(suppliersRes.data);
         fetchCart();
         
-        // Handle direct link to product
         const prodId = searchParams.get('id');
         if (prodId) {
           const prod = productsRes.data.find((p: any) => p._id === prodId);
@@ -139,7 +141,7 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
       }
     };
     fetchData();
-  }, []);
+  }, [activeFilter]);
 
   const openOrderModal = (p: Product, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -161,17 +163,13 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSupplier = selectedSupplierId ? (typeof p.supplierId === 'object' ? p.supplierId?._id === selectedSupplierId : p.supplierId === selectedSupplierId) : true;
-    const matchesFilter = activeFilter === 'all' ? true :
-                         activeFilter === 'featured' ? (p as any).featured :
-                         true; // Add more filter logic if needed
-    return matchesSearch && matchesSupplier && matchesFilter;
+    return matchesSearch && matchesSupplier;
   });
 
   if (loading) return <div className="p-8 text-center text-[--color-text-secondary]">Đang tải sản phẩm...</div>;
 
   return (
     <div className="bg-[--color-bg-base] min-h-screen pb-24 relative overflow-x-hidden">
-      {/* Sticky Header with Search */}
       <div className="sticky top-0 z-40 bg-white shadow-sm p-4 space-y-4 border-b border-gray-100">
         <div className="flex gap-3 items-center">
             <button onClick={() => navigate(-1)} className="p-2 bg-gray-100 rounded-full border border-transparent shadow-sm">
@@ -197,7 +195,6 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
             </button>
         </div>
 
-        {/* Quick Filter Chips */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
            {[
              { id: 'all', label: 'Tất cả', icon: Package },
@@ -219,7 +216,6 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
            ))}
         </div>
 
-        {/* Supplier Horizontal Scroll */}
         <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
            <button 
              onClick={() => setSelectedSupplierId('')}
@@ -243,7 +239,6 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
         </div>
       </div>
 
-      {/* Product List Grid 2-column */}
       <div className="p-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
          {filteredProducts.map(p => (
            <motion.div 
@@ -313,7 +308,6 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
          )}
       </div>
 
-      {/* Bottom Sheet / Side Detail View */}
       <AnimatePresence>
         {isDetailOpen && selectedProduct && (
           <motion.div 
@@ -332,7 +326,6 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
              </div>
              
              <div className="flex-1 overflow-y-auto no-scrollbar bg-[--color-bg-base] pb-24">
-                {/* Image Section */}
                 <div className="bg-white relative">
                    <div className="aspect-square bg-gray-50 relative group">
                       <AnimatePresence mode="wait">
@@ -355,7 +348,6 @@ Mô tả: ${p.description || 'Chưa có mô tả'}
                       </button>
                    </div>
                    
-                   {/* Image Thumbnails */}
                    {selectedProduct.images && selectedProduct.images.length > 1 && (
                      <div className="flex gap-2 p-4 overflow-x-auto no-scrollbar">
                         {selectedProduct.images.map((img, idx) => (
