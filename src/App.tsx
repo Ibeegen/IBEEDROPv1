@@ -4,7 +4,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AgentLayout from './layouts/AgentLayout';
 import AdminLayout from './layouts/AdminLayout';
 
-import Login from './pages/Login';
+import LandingPage from './pages/LandingPage';
+import AdminLogin from './pages/AdminLogin';
+import AgentLogin from './pages/AgentLogin';
 import Register from './pages/Register';
 import Shop from './pages/Shop';
 
@@ -37,8 +39,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<LandingPage />} />
+        
+        {/* Auth Routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/agent/login" element={<AgentLogin />} />
+        <Route path="/dang-ky-dai-ly" element={<Register />} />
+        
+        {/* Old Routes Redirects */}
+        <Route path="/login" element={<Navigate to="/agent/login" replace />} />
+        <Route path="/register" element={<Navigate to="/dang-ky-dai-ly" replace />} />
+        
         <Route path="/shop/:agentId" element={<Shop />} />
         
         {/* Admin Routes */}
@@ -73,7 +84,7 @@ export default function App() {
         </Route>
 
         {/* Default route */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -19,7 +19,11 @@ export const getProducts = async (req: Request, res: Response) => {
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const product = new Product(req.body);
+    const data = { ...req.body };
+    if (!data.supplierId) {
+      delete data.supplierId;
+    }
+    const product = new Product(data);
     await product.save();
     res.status(201).json(product);
   } catch (error) {
@@ -33,7 +37,11 @@ export const updateProduct = async (req: Request, res: Response) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
     
-    Object.assign(product, req.body);
+    const data = { ...req.body };
+    if (!data.supplierId) {
+      delete data.supplierId;
+    }
+    Object.assign(product, data);
     await product.save(); 
     
     res.json(product);

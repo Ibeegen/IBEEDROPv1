@@ -32,8 +32,12 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, portal } = req.body;
     
+    if (!portal || (portal !== 'admin' && portal !== 'agent')) {
+      return res.status(400).json({ message: 'Portal field is required (admin or agent)' });
+    }
+
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -42,8 +46,16 @@ export const login = async (req: Request, res: Response) => {
 
     if (user.status !== 'active') return res.status(403).json({ message: 'Account is not active' });
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+    if (portal === 'admin' && user.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden. Admin access required.' });
+    }
+    
+    if (portal === 'agent' && user.role !== 'agent') {
+      return res.status(403).json({ message: 'Forbidden. Agent access required.' });
+    }
+
+    const token = jwt.sign({ id: user._id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token, user: { id: user._id, name: user.name, role: user.role, email: user.email } });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error', error: error instanceof Error ? error.message : String(error) });

@@ -7,7 +7,7 @@ export default function AgentLayout() {
   const { user } = useAuth();
 
   if (!user || user.role !== 'agent') {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/agent/login" replace />;
   }
 
   const navItems = [

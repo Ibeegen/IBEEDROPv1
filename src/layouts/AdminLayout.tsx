@@ -8,12 +8,12 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   if (!user || user.role !== 'admin') {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/admin/login" replace />;
   }
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   const menu = [
