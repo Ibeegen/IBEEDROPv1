@@ -7,11 +7,16 @@ let replSet: MongoMemoryReplSet;
 
 export const connectDB = async () => {
   try {
-    replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
-    const uri = replSet.getUri();
+    let uri = process.env.MONGODB_URI;
+
+    if (!uri) {
+      console.log('No MONGODB_URI found, using memory server...');
+      replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+      uri = replSet.getUri();
+    }
 
     await mongoose.connect(uri);
-    console.log(`MongoDB connected to memory replica set: ${uri}`);
+    console.log(`MongoDB connected: ${uri.includes('mongodb-memory-server') || !process.env.MONGODB_URI ? 'MemoryServer' : 'Remote'}`);
     
     await seedDemoData();
   } catch (err) {
@@ -22,30 +27,46 @@ export const connectDB = async () => {
 
 const seedDemoData = async () => {
   try {
-    const adminExists = await User.findOne({ email: 'admin@demo.com' });
-    if (!adminExists) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      await User.create({
-        name: 'Admin Demo',
-        phone: '0123456789',
-        email: 'admin@demo.com',
-        password: hashedPassword,
-        role: 'admin'
-      });
-      console.log('Created Admin Demo: admin@demo.com / admin123');
+    const adminsToCreate = [
+      { email: 'admin@ibeedrop.com', name: 'Admin 1', phone: '0123456789', role: 'admin' },
+      { email: 'admin2@ibeedrop.com', name: 'Admin 2', phone: '0123456780', role: 'admin' },
+      { email: 'admin3@ibeedrop.com', name: 'Admin 3', phone: '0123456781', role: 'admin' },
+    ];
+
+    for (const adminData of adminsToCreate) {
+      const adminExists = await User.findOne({ email: adminData.email });
+      if (!adminExists) {
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await User.create({
+          name: adminData.name,
+          phone: adminData.phone,
+          email: adminData.email,
+          password: hashedPassword,
+          role: adminData.role
+        });
+        console.log(`Created Admin: ${adminData.email} / admin123`);
+      }
     }
 
-    const agentExists = await User.findOne({ email: 'agent@demo.com' });
-    if (!agentExists) {
-      const hashedPassword = await bcrypt.hash('agent123', 10);
-      await User.create({
-        name: 'Agent Demo',
-        phone: '0987654321',
-        email: 'agent@demo.com',
-        password: hashedPassword,
-        role: 'agent'
-      });
-      console.log('Created Agent Demo: agent@demo.com / agent123');
+    const agentsToCreate = [
+      { email: 'agent1@ibeedrop.com', name: 'Agent 1', phone: '0987654321', role: 'agent' },
+      { email: 'agent2@ibeedrop.com', name: 'Agent 2', phone: '0987654322', role: 'agent' },
+      { email: 'agent3@ibeedrop.com', name: 'Agent 3', phone: '0987654323', role: 'agent' },
+    ];
+
+    for (const agentData of agentsToCreate) {
+      const agentExists = await User.findOne({ email: agentData.email });
+      if (!agentExists) {
+        const hashedPassword = await bcrypt.hash('agent123', 10);
+        await User.create({
+          name: agentData.name,
+          phone: agentData.phone,
+          email: agentData.email,
+          password: hashedPassword,
+          role: agentData.role
+        });
+        console.log(`Created Agent: ${agentData.email} / agent123`);
+      }
     }
 
     // Seed products

@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error("CRITICAL ERROR: JWT_SECRET environment variable is not defined in production!");
+  process.exit(1);
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 export interface AuthRequest extends Request {

@@ -101,7 +101,8 @@ export default function ChatPanel() {
   useEffect(() => {
     fetchConversations();
 
-    const socket = io(window.location.origin);
+    const socketUrl = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).origin : window.location.origin;
+    const socket = io(socketUrl);
     socketRef.current = socket;
 
     socket.on('connect', () => {
